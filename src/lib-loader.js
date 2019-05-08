@@ -18,15 +18,17 @@ const loader = {
 	 * @param loadCn    Boolean. If set to true, the map will be loaded form goole maps China
 	 *                  (@see https://developers.google.com/maps/documentation/javascript/basics#GoogleMapsChina)
 	 */
-	load ({ apiKey, version, libraries, loadCn, useNewFeatures = true, externalGoogleMaps = true }) {
+	load (options = { externalGoogleMaps: true }) {
 		if (typeof window === 'undefined') {
 			// Do nothing if run from server-side
 			return Promise.resolve()
 		}
 		if (!this.loaded && (!window.google || !window.google.maps)) {
-			if (externalGoogleMaps) {
+			if (options.externalGoogleMaps) {
 				this._assertGoogleMapsLoaded()
 			} else {
+				const { apiKey, version, libraries, loadCn } = options
+				const useNewFeatures = options.useNewFeatures || true
 				this._loadScript(apiKey, version, libraries, loadCn, useNewFeatures)
 			}
 		} else {
@@ -38,9 +40,9 @@ const loader = {
 	_assertGoogleMapsLoaded() {
 		if (window.google && window.google.maps) {
 			this._setLoaded()
-		} else if (this.retries > 0) {
-			this.retries--
-			window.setTimeout(this._assertGoogleMapsLoaded, ASSERT_DELAY)
+		} else if (this.assertRetries > 0) {
+			this.assertRetries--
+			window.setTimeout(this._assertGoogleMapsLoaded.bind(this), ASSERT_DELAY)
 		} else {
 			this._assertFailed()
 		}

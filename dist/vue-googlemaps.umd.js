@@ -936,24 +936,23 @@ var loader = {
   * @param loadCn    Boolean. If set to true, the map will be loaded form goole maps China
   *                  (@see https://developers.google.com/maps/documentation/javascript/basics#GoogleMapsChina)
   */
-	load: function load(_ref) {
-		var apiKey = _ref.apiKey,
-		    version = _ref.version,
-		    libraries = _ref.libraries,
-		    loadCn = _ref.loadCn,
-		    _ref$useNewFeatures = _ref.useNewFeatures,
-		    useNewFeatures = _ref$useNewFeatures === undefined ? true : _ref$useNewFeatures,
-		    _ref$externalGoogleMa = _ref.externalGoogleMaps,
-		    externalGoogleMaps = _ref$externalGoogleMa === undefined ? true : _ref$externalGoogleMa;
+	load: function load() {
+		var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : { externalGoogleMaps: true };
 
 		if (typeof window === 'undefined') {
 			// Do nothing if run from server-side
 			return Promise.resolve();
 		}
 		if (!this.loaded && (!window.google || !window.google.maps)) {
-			if (externalGoogleMaps) {
+			if (options.externalGoogleMaps) {
 				this._assertGoogleMapsLoaded();
 			} else {
+				var apiKey = options.apiKey,
+				    version = options.version,
+				    libraries = options.libraries,
+				    loadCn = options.loadCn;
+
+				var useNewFeatures = options.useNewFeatures || true;
 				this._loadScript(apiKey, version, libraries, loadCn, useNewFeatures);
 			}
 		} else {
@@ -964,9 +963,9 @@ var loader = {
 	_assertGoogleMapsLoaded: function _assertGoogleMapsLoaded() {
 		if (window.google && window.google.maps) {
 			this._setLoaded();
-		} else if (this.retries > 0) {
-			this.retries--;
-			window.setTimeout(this._assertGoogleMapsLoaded, ASSERT_DELAY);
+		} else if (this.assertRetries > 0) {
+			this.assertRetries--;
+			window.setTimeout(this._assertGoogleMapsLoaded.bind(this), ASSERT_DELAY);
 		} else {
 			this._assertFailed();
 		}
@@ -2660,9 +2659,7 @@ var plugin = {
 			registerComponents(Vue, finalOptions.componentsPrefix);
 		}
 
-		if (finalOptions.load) {
-			loader.load(finalOptions.load);
-		}
+		loader.load(finalOptions.load);
 	}
 };
 
