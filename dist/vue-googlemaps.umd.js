@@ -1,8 +1,8 @@
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
-	typeof define === 'function' && define.amd ? define(['exports'], factory) :
-	(factory((global['vue-googlemaps'] = {})));
-}(this, (function (exports) { 'use strict';
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('vue-googlemaps')) :
+	typeof define === 'function' && define.amd ? define(['exports', 'vue-googlemaps'], factory) :
+	(factory((global['vue-googlemaps'] = {}),global.vueGooglemaps));
+}(this, (function (exports,vueGooglemaps) { 'use strict';
 
 function createCommonjsModule(fn, module) {
 	return module = { exports: {} }, fn(module, module.exports), module.exports;
@@ -916,9 +916,13 @@ var _extends = Object.assign || function (target) {
   return target;
 };
 
+var ASSERT_DELAY = 50;
+var ASSERT_TIMEOUT = 30000;
+
 var loader = {
 	loaded: false,
 	readyPromises: [],
+	assertRetries: Math.floor(ASSERT_TIMEOUT / ASSERT_DELAY),
 
 	/**
   * @param apiKey    API Key, or object with the URL parameters. For example
@@ -938,68 +942,87 @@ var loader = {
 		    libraries = _ref.libraries,
 		    loadCn = _ref.loadCn,
 		    _ref$useNewFeatures = _ref.useNewFeatures,
-		    useNewFeatures = _ref$useNewFeatures === undefined ? true : _ref$useNewFeatures;
+		    useNewFeatures = _ref$useNewFeatures === undefined ? true : _ref$useNewFeatures,
+		    _ref$externalGoogleMa = _ref.externalGoogleMaps,
+		    externalGoogleMaps = _ref$externalGoogleMa === undefined ? true : _ref$externalGoogleMa;
 
 		if (typeof window === 'undefined') {
 			// Do nothing if run from server-side
 			return Promise.resolve();
 		}
 		if (!this.loaded && (!window.google || !window.google.maps)) {
-			var googleMapScript = document.createElement('SCRIPT');
-
-			// Allow apiKey to be an object.
-			// This is to support more esoteric means of loading Google Maps,
-			// such as Google for business
-			// https://developers.google.com/maps/documentation/javascript/get-api-key#premium-auth
-			var options = {};
-			if (typeof apiKey === 'string') {
-				options.key = apiKey;
-			} else if ((typeof apiKey === 'undefined' ? 'undefined' : _typeof(apiKey)) === 'object') {
-				for (var k in apiKey) {
-					// transfer values in apiKey to options
-					options[k] = apiKey[k];
-				}
+			if (externalGoogleMaps) {
+				this._assertGoogleMapsLoaded();
 			} else {
-				throw new Error('`apiKey` should either be a string or an object');
+				this._loadScript(apiKey, version, libraries, loadCn, useNewFeatures);
 			}
-
-			// libraries
-			var librariesPath = '';
-			if (libraries && libraries.length > 0) {
-				librariesPath = libraries.join(',');
-				options['libraries'] = librariesPath;
-			} else if (Array.prototype.isPrototypeOf(options.libraries)) {
-				options.libraries = options.libraries.join(',');
-			}
-			options['callback'] = 'VueGoogleMapsLoaded';
-
-			var baseUrl = typeof loadCn === 'boolean' && loadCn === true ? 'http://maps.google.cn' : 'https://maps.googleapis.com';
-
-			var urlParams = Object.keys(options).map(function (key) {
-				return encodeURIComponent(key) + '=' + encodeURIComponent(options[key]);
-			}).join('&');
-
-			var url = baseUrl + '/maps/api/js?' + urlParams;
-
-			// Override version if they do not want to use the new renderer/base map
-			if (!useNewFeatures) {
-				version = '3.31';
-			}
-
-			if (version) {
-				url = url + '&v=' + version;
-			}
-
-			googleMapScript.setAttribute('src', url);
-			googleMapScript.setAttribute('async', '');
-			googleMapScript.setAttribute('defer', '');
-			document.body.appendChild(googleMapScript);
-
-			window.VueGoogleMapsLoaded = this._setLoaded.bind(this);
 		} else {
-			console.warn('The Google Maps library is already loaded');
+			console.info('The Google Maps library is already loaded');
 			this._setLoaded();
 		}
+	},
+	_assertGoogleMapsLoaded: function _assertGoogleMapsLoaded() {
+		if (window.google && window.google.maps) {
+			this._setLoaded();
+		} else if (this.retries > 0) {
+			this.retries--;
+			window.setTimeout(this._assertGoogleMapsLoaded, ASSERT_DELAY);
+		} else {
+			this._assertFailed();
+		}
+	},
+	_loadScript: function _loadScript(apiKey, version, libraries, loadCn, useNewFeatures) {
+		var googleMapScript = document.createElement('SCRIPT');
+
+		// Allow apiKey to be an object.
+		// This is to support more esoteric means of loading Google Maps,
+		// such as Google for business
+		// https://developers.google.com/maps/documentation/javascript/get-api-key#premium-auth
+		var options = {};
+		if (typeof apiKey === 'string') {
+			options.key = apiKey;
+		} else if ((typeof apiKey === 'undefined' ? 'undefined' : _typeof(apiKey)) === 'object') {
+			for (var k in apiKey) {
+				// transfer values in apiKey to options
+				options[k] = apiKey[k];
+			}
+		} else {
+			throw new Error('`apiKey` should either be a string or an object');
+		}
+
+		// libraries
+		var librariesPath = '';
+		if (libraries && libraries.length > 0) {
+			librariesPath = libraries.join(',');
+			options['libraries'] = librariesPath;
+		} else if (Array.prototype.isPrototypeOf(options.libraries)) {
+			options.libraries = options.libraries.join(',');
+		}
+		options['callback'] = 'VueGoogleMapsLoaded';
+
+		var baseUrl = typeof loadCn === 'boolean' && loadCn === true ? 'http://maps.google.cn' : 'https://maps.googleapis.com';
+
+		var urlParams = Object.keys(options).map(function (key) {
+			return encodeURIComponent(key) + '=' + encodeURIComponent(options[key]);
+		}).join('&');
+
+		var url = baseUrl + '/maps/api/js?' + urlParams;
+
+		// Override version if they do not want to use the new renderer/base map
+		if (!useNewFeatures) {
+			version = '3.31';
+		}
+
+		if (version) {
+			url = url + '&v=' + version;
+		}
+
+		googleMapScript.setAttribute('src', url);
+		googleMapScript.setAttribute('async', '');
+		googleMapScript.setAttribute('defer', '');
+		document.body.appendChild(googleMapScript);
+
+		window.VueGoogleMapsLoaded = this._setLoaded.bind(this);
 	},
 	ensureReady: function ensureReady() {
 		var _this = this;
@@ -1036,6 +1059,35 @@ var loader = {
 			} finally {
 				if (_didIteratorError) {
 					throw _iteratorError;
+				}
+			}
+		}
+
+		this.readyPromises = [];
+	},
+	_assertFailed: function _assertFailed() {
+		this.loaded = true;
+		var _iteratorNormalCompletion2 = true;
+		var _didIteratorError2 = false;
+		var _iteratorError2 = undefined;
+
+		try {
+			for (var _iterator2 = this.readyPromises[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+				var reject = _step2.value;
+
+				reject();
+			}
+		} catch (err) {
+			_didIteratorError2 = true;
+			_iteratorError2 = err;
+		} finally {
+			try {
+				if (!_iteratorNormalCompletion2 && _iterator2.return) {
+					_iterator2.return();
+				}
+			} finally {
+				if (_didIteratorError2) {
+					throw _iteratorError2;
 				}
 			}
 		}
@@ -1374,7 +1426,7 @@ var FindAncestor = {
 	}
 };
 
-var MapElement = {
+var MapElement$1 = {
 	mixins: [BoundProps, Events, FindAncestor, Ready],
 
 	created: function created() {
@@ -1421,7 +1473,7 @@ var redirectedEvents = ['click', 'rightclick', 'dblclick', 'drag', 'dragstart', 
 var Circle = {
 	name: 'GoogleMapsCircle',
 
-	mixins: [MapElement],
+	mixins: [MapElement$1],
 
 	props: {
 		center: {
@@ -1722,14 +1774,14 @@ var plugin$2 = {
 };
 
 // Auto-install
-var GlobalVue$1 = null;
+var GlobalVue = null;
 if (typeof window !== 'undefined') {
-	GlobalVue$1 = window.Vue;
+	GlobalVue = window.Vue;
 } else if (typeof global !== 'undefined') {
-	GlobalVue$1 = global.Vue;
+	GlobalVue = global.Vue;
 }
-if (GlobalVue$1) {
-	GlobalVue$1.use(plugin$2);
+if (GlobalVue) {
+	GlobalVue.use(plugin$2);
 }
 
 function throwValueError(value) {
@@ -1791,14 +1843,14 @@ var plugin$4 = {
 };
 
 // Auto-install
-var GlobalVue$2 = null;
+var GlobalVue$1 = null;
 if (typeof window !== 'undefined') {
-	GlobalVue$2 = window.Vue;
+	GlobalVue$1 = window.Vue;
 } else if (typeof global !== 'undefined') {
-	GlobalVue$2 = global.Vue;
+	GlobalVue$1 = global.Vue;
 }
-if (GlobalVue$2) {
-	GlobalVue$2.use(plugin$4);
+if (GlobalVue$1) {
+	GlobalVue$1.use(plugin$4);
 }
 
 function redirectMethods(_ref) {
@@ -1985,7 +2037,7 @@ var redirectedEvents$2 = ['click', 'rightclick', 'dblclick', 'drag', 'dragstart'
 var Marker = {
 	name: 'GoogleMapsMarker',
 
-	mixins: [MapElement],
+	mixins: [MapElement$1],
 
 	props: {
 		animation: {
@@ -2259,7 +2311,7 @@ var redirectedEvents$3 = ['click', 'rightclick', 'dblclick', 'drag', 'dragstart'
 var Polyline = {
 	name: 'GoogleMapsPolyline',
 
-	mixins: [MapElement],
+	mixins: [MapElement$1],
 
 	props: {
 		editable: {
@@ -2321,7 +2373,7 @@ var redirectedEvents$4 = ['click', 'rightclick', 'dblclick', 'drag', 'dragstart'
 var Rectangle = {
 	name: 'GoogleMapsRectangle',
 
-	mixins: [MapElement],
+	mixins: [MapElement$1],
 
 	props: {
 		bounds: {
@@ -2388,16 +2440,21 @@ var Rectangle = {
 	}
 };
 
-var boundProps$5 = ['draggable', 'editable', 'options', 'paths'];
+var boundProps$5 = ["draggable", "editable", "options", "paths"];
 
-var redirectedEvents$5 = ['click', 'rightclick', 'dblclick', 'drag', 'dragstart', 'dragend', 'mouseup', 'mousedown', 'mouseover', 'mouseout'];
+var redirectedEvents$5 = ["click", "rightclick", "dblclick", "drag", "dragstart", "dragend", "mouseup", "mousedown", "mouseover", "mouseout"];
+
+var redirectedPathEvents = ["set_at", "insert_at", "remove_at"];
 
 var Polygon = {
-	name: 'GoogleMapsPolygon',
+	name: "GoogleMapsPolygon",
 
-	mixins: [MapElement],
+	mixins: [vueGooglemaps.MapElement],
 
 	props: {
+		id: {
+			type: String
+		},
 		editable: {
 			type: Boolean,
 			default: false
@@ -2417,37 +2474,160 @@ var Polygon = {
 		}
 	},
 
-	watch: {
-		paths: 'updateOptions',
-		options: 'updateOptions'
+	data: function data() {
+		return {
+			dragging: false
+		};
 	},
+
+
+	watch: {
+		paths: "updateOptions",
+		options: "updateOptions"
+	},
+
+	beforeCreate: function beforeCreate() {
+		this.$_googlePathListeners = [];
+	},
+	beforeDestroy: function beforeDestroy() {
+		if (this.$_polygon) {
+			this.$_polygon.setMap(null);
+		}
+		this.removePathEventListeners();
+	},
+
 
 	methods: {
 		updateOptions: function updateOptions(options) {
 			this.$_polygon && this.$_polygon.setOptions(options || this.$props);
+			this.$_polygon && this.$_polygon.setMap(this.$_map);
+		},
+
+		// Override redirectEvents to supply polygon
+		redirectEvents: function redirectEvents(target, events) {
+			var _this = this;
+
+			var _loop = function _loop(e) {
+				_this.listen(target, e, function (args) {
+					if (e === "dragstart") {
+						_this.dragging = true;
+					} else if (e === "dragend") {
+						_this.dragging = false;
+					} else if (e === "mouseover") {
+						// TODO find a way to set path handlers correctly
+						_this.redirectPathEvents(target);
+					}
+					_this.$emit(e, { event: args, polygon: target, id: _this.id });
+				});
+			};
+
+			var _iteratorNormalCompletion = true;
+			var _didIteratorError = false;
+			var _iteratorError = undefined;
+
+			try {
+				for (var _iterator = events[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+					var e = _step.value;
+
+					_loop(e);
+				}
+			} catch (err) {
+				_didIteratorError = true;
+				_iteratorError = err;
+			} finally {
+				try {
+					if (!_iteratorNormalCompletion && _iterator.return) {
+						_iterator.return();
+					}
+				} finally {
+					if (_didIteratorError) {
+						throw _iteratorError;
+					}
+				}
+			}
+		},
+		listenToPath: function listenToPath(target, event, handler) {
+			this.$_googlePathListeners.push(target.addListener(event, handler));
+		},
+		removePathEventListeners: function removePathEventListeners() {
+			var _iteratorNormalCompletion2 = true;
+			var _didIteratorError2 = false;
+			var _iteratorError2 = undefined;
+
+			try {
+				for (var _iterator2 = this.$_googlePathListeners[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+					var listener = _step2.value;
+
+					listener.remove();
+				}
+			} catch (err) {
+				_didIteratorError2 = true;
+				_iteratorError2 = err;
+			} finally {
+				try {
+					if (!_iteratorNormalCompletion2 && _iterator2.return) {
+						_iterator2.return();
+					}
+				} finally {
+					if (_didIteratorError2) {
+						throw _iteratorError2;
+					}
+				}
+			}
+
+			this.$_googlePathListeners = [];
+		},
+		redirectPathEvents: function redirectPathEvents(target) {
+			var _this2 = this;
+
+			this.removePathEventListeners();
+
+			var _loop2 = function _loop2(e) {
+				_this2.listenToPath(target.getPath(), e, function (args) {
+					if (_this2.dragging && e === "set_at") {
+						return;
+					}
+					_this2.$emit(e, { event: args, polygon: _this2.$_polygon, id: _this2.id });
+				});
+			};
+
+			var _iteratorNormalCompletion3 = true;
+			var _didIteratorError3 = false;
+			var _iteratorError3 = undefined;
+
+			try {
+				for (var _iterator3 = redirectedPathEvents[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
+					var e = _step3.value;
+
+					_loop2(e);
+				}
+			} catch (err) {
+				_didIteratorError3 = true;
+				_iteratorError3 = err;
+			} finally {
+				try {
+					if (!_iteratorNormalCompletion3 && _iterator3.return) {
+						_iterator3.return();
+					}
+				} finally {
+					if (_didIteratorError3) {
+						throw _iteratorError3;
+					}
+				}
+			}
 		}
 	},
 
 	render: function render(h) {
-		return '';
+		return "";
 	},
 	googleMapsReady: function googleMapsReady() {
-		var _this = this;
-
 		var options = Object.assign({}, this.$props);
 		options.map = this.$_map;
 
 		this.$_polygon = new window.google.maps.Polygon(options);
 		this.bindProps(this.$_polygon, boundProps$5);
 		this.redirectEvents(this.$_polygon, redirectedEvents$5);
-		this.listen(this.$_polygon, 'drag', function () {
-			_this.$emit('path_changed', _this.$_polygon.getPath());
-		});
-	},
-	beforeDestroy: function beforeDestroy() {
-		if (this.$_polygon) {
-			this.$_polygon.setMap(null);
-		}
 	}
 };
 
@@ -2486,17 +2666,6 @@ var plugin = {
 	}
 };
 
-// Auto-install
-var GlobalVue = null;
-if (typeof window !== 'undefined') {
-	GlobalVue = window.Vue;
-} else if (typeof global !== 'undefined') {
-	GlobalVue = global.Vue;
-}
-if (GlobalVue) {
-	GlobalVue.use(plugin);
-}
-
 exports.Circle = Circle;
 exports.Rectangle = Rectangle;
 exports.Geocoder = Geocoder;
@@ -2505,7 +2674,7 @@ exports.Marker = Marker;
 exports.NearbyPlaces = NearbyPlaces;
 exports.PlaceDetails = PlaceDetails;
 exports.UserPosition = UserPosition;
-exports.MapElement = MapElement;
+exports.MapElement = MapElement$1;
 exports.Polyline = Polyline;
 exports.Polygon = Polygon;
 exports['default'] = plugin;
