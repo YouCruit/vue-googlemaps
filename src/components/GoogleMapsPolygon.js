@@ -120,4 +120,4 @@ export default {
 		this.bindProps(this.$_polygon, boundProps);
 		this.redirectEvents(this.$_polygon, redirectedEvents);
 	}
-}
+};
