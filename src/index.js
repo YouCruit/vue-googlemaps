@@ -13,6 +13,8 @@ import UserPosition from './components/UserPosition'
 import Polyline from './components/Polyline'
 import Rectangle from './components/Rectangle'
 import Polygon from './components/Polygon'
+import InfoWindow from './components/InfoWindow'
+import DrawingManager from './components/DrawingManager'
 
 import MapElement from './mixins/MapElement'
 
@@ -28,6 +30,8 @@ export {
 	MapElement,
 	Polyline,
 	Polygon,
+	InfoWindow,
+	DrawingManager,
 }
 
 function registerComponents (Vue, prefix) {

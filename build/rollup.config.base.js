@@ -10,24 +10,23 @@ const config = require('../package.json')
 
 export default {
 	input: 'src/index.js',
-	name: 'vue-googlemaps',
 	plugins: [
 		resolve({
-			jsnext: true,
-			main: true,
-			browser: true,
+			mainFields: ['jsnext:module', 'jsnext:main'],
 		}),
-		cjs(),
+		cjs({
+			namedExports: {
+				'node_modules/vue-resize/dist/vue-resize.umd.js': [ 'ResizeObserver' ],
+				'node_modules/vue-observe-visibility/dist/vue-observe-visibility.umd.js': [ 'ObserveVisibility' ],
+			},
+		}),
 		vue({
 			css (style) {
 				fs.writeFileSync('dist/vue-googlemaps.css', new CleanCSS().minify(style).styles)
 			},
 		}),
 		babel({
-			exclude: 'node_modules/**',
-			'plugins': [
-				'external-helpers',
-			],
+			babelrc: false,
 		}),
 		replace({
 			VERSION: JSON.stringify(config.version),

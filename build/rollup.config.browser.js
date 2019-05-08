@@ -1,16 +1,16 @@
 import base from './rollup.config.base'
-import uglify from 'rollup-plugin-uglify'
-import { minify } from 'uglify-es'
+import { terser } from 'rollup-plugin-terser'
 
 const config = Object.assign({}, base, {
-	exports: 'named',
+	// exports: 'named',
 	output: {
 		file: 'dist/vue-googlemaps.min.js',
 		format: 'iife',
+		name: 'VueGoogleMaps',
+		exports: 'named',
 	},
-	name: 'VueGoogleMaps',
 })
 
-config.plugins.push(uglify({}, minify))
+config.plugins.push(terser())
 
 export default config

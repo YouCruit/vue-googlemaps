@@ -197,11 +197,9 @@ export default {
 }
 </script>
 
-<style lang="stylus">
-@import '../../node_modules/vue-resize/dist/vue-resize.css';
-</style>
+<style lang="stylus" src="../../node_modules/vue-resize/dist/vue-resize.css"></style>
 
-<style lang="stylus" scoped>
+<style lang="stylus">
 .vue-google-map {
 	position: relative;
 

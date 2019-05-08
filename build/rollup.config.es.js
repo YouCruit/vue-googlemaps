@@ -4,6 +4,7 @@ const config = Object.assign({}, base, {
 	output: {
 		file: 'dist/vue-googlemaps.esm.js',
 		format: 'es',
+		exports: 'named',
 	},
 })
 

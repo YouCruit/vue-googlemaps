@@ -1,4 +1,4 @@
-import { MapElement } from "vue-googlemaps";
+import MapElement from '../mixins/MapElement'
 
 const boundProps = ["draggable", "editable", "options", "paths"];
 
